@@ -1,0 +1,36 @@
+# 模型路径配置
+# 配置 SDXL 基础模型、LoRA 权重和 SAM 模型的路径
+
+# SDXL 基础模型（Hugging Face 模型 ID 或本地路径）
+# 首次运行会自动从 Hugging Face 下载，建议提前下载到本地
+base_model: "stabilityai/stable-diffusion-xl-base-1.0"
+
+# VAE 模型（使用 SDXL 配套的 VAE，提升图片质量）
+# 设置为 null 则使用基础模型自带的 VAE
+vae_model: "madebyollin/sdxl-vae-fp16-fix"
+
+# 默认 LoRA 权重路径（相对于项目根目录）
+# 设置为 null 则不加载默认 LoRA
+default_lora: null
+# 示例: default_lora: "models/lora/mystyle_v1.safetensors"
+
+# LoRA 默认权重系数（0.0 ~ 1.0，越大风格越明显）
+default_lora_weight: 0.8
+
+# SAM（Segment Anything Model）权重路径
+# 需要手动下载，参见 scripts/setup_models.py
+sam_checkpoint: "models/sam/sam_vit_h_4b8939.pth"
+
+# SAM 模型类型（vit_h / vit_l / vit_b）
+sam_model_type: "vit_h"
+
+# 显存优化设置（适配 16G 显卡）
+memory_optimization:
+  # 启用 CPU 卸载（将不活跃的组件卸载到 CPU，节省显存）
+  enable_cpu_offload: true
+  # 启用 VAE tiling（大图生成时分块处理，防止 OOM）
+  enable_vae_tiling: true
+  # 使用半精度浮点（fp16）减少显存占用
+  use_fp16: true
+  # 启用 attention slicing（进一步节省显存，略微降低速度）
+  enable_attention_slicing: true
