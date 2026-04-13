@@ -1,0 +1,25 @@
+name: "icon"
+description: "游戏/应用图标生成"
+sizes:
+  - name: "small"
+    width: 64
+    height: 64
+  - name: "medium"
+    width: 128
+    height: 128
+  - name: "large"
+    width: 256
+    height: 256
+  - name: "hd"
+    width: 512
+    height: 512
+internal_resolution:
+  width: 1024
+  height: 1024
+default_negative_prompt: >
+  blurry, low quality, text, watermark,
+  realistic, photo, 3d render
+prompt_template: >
+  game icon of {prompt}, flat design, clean edges,
+  centered composition, transparent background style,
+  UI icon, vector style

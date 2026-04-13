@@ -1,0 +1,21 @@
+name: "ui_design"
+description: "UI 设计图生成"
+sizes:
+  - name: "mobile_portrait"
+    width: 1080
+    height: 1920
+  - name: "mobile_landscape"
+    width: 1920
+    height: 1080
+  - name: "ipad"
+    width: 2048
+    height: 1536
+internal_resolution:
+  width: 1024
+  height: 1792
+default_negative_prompt: >
+  blurry, low quality, realistic photo,
+  watermark, text artifacts
+prompt_template: >
+  UI design mockup of {prompt}, clean modern interface,
+  game UI, detailed elements, layered design
