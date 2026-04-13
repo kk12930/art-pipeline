@@ -1,7 +1,0 @@
-base_model: "stabilityai/stable-diffusion-xl-base-1.0"
-default_lora: null
-sam_checkpoint: "models/sam/sam_vit_h.pth"
-device: "cuda"
-dtype: "float16"
-enable_cpu_offload: true
-enable_vae_tiling: true
