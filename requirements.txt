@@ -1,0 +1,32 @@
+# ============================================================
+# 核心依赖（阶段一：基础生成功能必需）
+# ============================================================
+torch>=2.2.0
+torchvision
+diffusers>=0.27.0
+transformers>=4.38.0
+accelerate>=0.27.0
+Pillow>=10.0.0
+PyYAML>=6.0
+tqdm>=4.65.0
+safetensors>=0.4.0
+
+# ============================================================
+# 以下为可选依赖（按阶段安装）
+# ============================================================
+
+# 阶段三：UI 自动拆解
+# segment-anything  # SAM 分割模型
+#   安装方式：pip install git+https://github.com/facebookresearch/segment-anything.git
+# opencv-python>=4.8.0  # 图像处理
+# numpy>=1.24.0
+
+# 阶段四：后处理优化
+# realesrgan  # Real-ESRGAN 超分辨率
+# basicsr     # Real-ESRGAN 依赖
+
+# 阶段五：可视化界面
+# gradio>=4.0  # Web UI
+
+# 训练相关（阶段二）
+# bitsandbytes>=0.41.0  # 8-bit Adam 优化器，节省显存
