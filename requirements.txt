@@ -9,3 +9,6 @@ accelerate
 PyYAML
 safetensors
 pillow
+fastapi
+uvicorn
+httpx

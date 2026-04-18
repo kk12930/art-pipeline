@@ -2,8 +2,8 @@ defaults:
   prompt: A clean product-style icon on a neutral background.
   model: stabilityai/stable-diffusion-xl-base-1.0
   negative_prompt: blurry, low quality, distorted, text, watermark
-  width: 100
-  height: 100
+  width: 1024
+  height: 1024
   steps: 30
   guidance_scale: 7.0
   seed: null

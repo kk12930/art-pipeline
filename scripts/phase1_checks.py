@@ -17,6 +17,7 @@ def main() -> None:
     checks = [
         [python, "-m", "unittest", "discover", "-v"],
         [python, "-m", "unittest", "tests.test_generate_sdxl", "-v"],
+        [python, "-m", "unittest", "tests.test_api", "-v"],
         [python, "scripts/generate_sdxl.py", "--help"],
     ]
 

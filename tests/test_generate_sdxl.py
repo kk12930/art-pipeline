@@ -169,6 +169,183 @@ class GenerateSdxlTests(unittest.TestCase):
         self.assertEqual(config["defaults"]["prompt"], "config prompt")
         self.assertEqual(config["presets"]["square"]["height"], 512)
 
+    def test_parse_args_reads_batch_file(self) -> None:
+        args = generate_sdxl.parse_args([
+            "--batch-file",
+            "batch.yaml",
+        ])
+
+        self.assertEqual(args.batch_file, "batch.yaml")
+
+    def test_parse_args_reads_lora_path(self) -> None:
+        args = generate_sdxl.parse_args([
+            "--lora-path",
+            "models/example-lora.safetensors",
+        ])
+
+        self.assertEqual(args.lora_path, "models/example-lora.safetensors")
+
+    def test_load_batch_items_reads_items_list(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            batch_path = Path(temp_dir) / "batch.yaml"
+            batch_path.write_text(
+                """items:\n  - prompt: first\n    preset: square\n  - prompt: second\n    width: 640\n    height: 640\n""",
+                encoding="utf-8",
+            )
+
+            items = generate_sdxl.load_batch_items(batch_path)
+
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["preset"], "square")
+        self.assertEqual(items[1]["width"], 640)
+
+    def test_main_runs_batch_items_with_fail_fast(self) -> None:
+        fake_image = MagicMock()
+        fake_pipe = MagicMock()
+        fake_pipe.return_value = MagicMock(images=[fake_image])
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "config.yaml").write_text(
+                """defaults:\n  prompt: config prompt\n  model: config-model\n  negative_prompt: config negative\n  width: 320\n  height: 320\n  steps: 12\n  guidance_scale: 5.5\n  device: cpu\npresets:\n  square:\n    width: 1024\n    height: 1024\n""",
+                encoding="utf-8",
+            )
+            (root / "batch.yaml").write_text(
+                """items:\n  - prompt: first prompt\n    preset: square\n  - prompt: second prompt\n    width: 640\n    height: 480\n""",
+                encoding="utf-8",
+            )
+
+            with patch.object(generate_sdxl, "build_pipeline", return_value=fake_pipe) as build_pipeline:
+                with patch.object(generate_sdxl.Path, "cwd", return_value=root):
+                    generate_sdxl.main([
+                        "--batch-file",
+                        str(root / "batch.yaml"),
+                        "--output-dir",
+                        temp_dir,
+                    ])
+
+        build_pipeline.assert_called_once_with(
+            "config-model",
+            "cpu",
+            torch.float32,
+        )
+        self.assertEqual(fake_pipe.call_count, 2)
+        first_kwargs = fake_pipe.call_args_list[0].kwargs
+        second_kwargs = fake_pipe.call_args_list[1].kwargs
+        self.assertEqual(first_kwargs["prompt"], "first prompt")
+        self.assertEqual(first_kwargs["width"], 1024)
+        self.assertEqual(first_kwargs["height"], 1024)
+        self.assertEqual(second_kwargs["prompt"], "second prompt")
+        self.assertEqual(second_kwargs["width"], 640)
+        self.assertEqual(second_kwargs["height"], 480)
+        self.assertEqual(fake_image.save.call_count, 2)
+
+    def test_main_batch_respects_cli_dimensions_over_batch_item(self) -> None:
+        fake_image = MagicMock()
+        fake_pipe = MagicMock()
+        fake_pipe.return_value = MagicMock(images=[fake_image])
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "config.yaml").write_text(
+                """defaults:\n  prompt: config prompt\n  model: config-model\n  width: 320\n  height: 320\n  device: cpu\npresets:\n  square:\n    width: 1024\n    height: 1024\n""",
+                encoding="utf-8",
+            )
+            (root / "batch.yaml").write_text(
+                """items:\n  - prompt: first prompt\n    width: 640\n    height: 480\n""",
+                encoding="utf-8",
+            )
+
+            with patch.object(generate_sdxl, "build_pipeline", return_value=fake_pipe):
+                with patch.object(generate_sdxl.Path, "cwd", return_value=root):
+                    generate_sdxl.main([
+                        "--batch-file",
+                        str(root / "batch.yaml"),
+                        "--width=900",
+                        "--height=600",
+                        "--output-dir",
+                        temp_dir,
+                    ])
+
+        call_kwargs = fake_pipe.call_args.kwargs
+        self.assertEqual(call_kwargs["width"], 900)
+        self.assertEqual(call_kwargs["height"], 600)
+
+    def test_main_batch_stops_on_first_error(self) -> None:
+        fake_image = MagicMock()
+        fake_pipe = MagicMock()
+        fake_pipe.side_effect = [
+            MagicMock(images=[fake_image]),
+            RuntimeError("pipeline exploded"),
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "config.yaml").write_text(
+                """defaults:\n  prompt: config prompt\n  model: config-model\n  device: cpu\npresets: {}\n""",
+                encoding="utf-8",
+            )
+            (root / "batch.yaml").write_text(
+                """items:\n  - prompt: first prompt\n  - prompt: second prompt\n  - prompt: third prompt\n""",
+                encoding="utf-8",
+            )
+
+            with patch.object(generate_sdxl, "build_pipeline", return_value=fake_pipe):
+                with patch.object(generate_sdxl.Path, "cwd", return_value=root):
+                    with self.assertRaisesRegex(RuntimeError, "pipeline exploded"):
+                        generate_sdxl.main([
+                            "--batch-file",
+                            str(root / "batch.yaml"),
+                            "--output-dir",
+                            temp_dir,
+                        ])
+
+        self.assertEqual(fake_pipe.call_count, 2)
+        fake_image.save.assert_called_once()
+
+    def test_apply_lora_weights_loads_existing_path(self) -> None:
+        fake_pipe = MagicMock()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lora_path = Path(temp_dir) / "example-lora.safetensors"
+            lora_path.write_bytes(b"test")
+
+            generate_sdxl.apply_lora_weights(fake_pipe, str(lora_path))
+
+        fake_pipe.load_lora_weights.assert_called_once_with(str(lora_path))
+
+    def test_apply_lora_weights_raises_for_missing_path(self) -> None:
+        fake_pipe = MagicMock()
+
+        with self.assertRaisesRegex(FileNotFoundError, "LoRA weights not found"):
+            generate_sdxl.apply_lora_weights(fake_pipe, "missing-lora.safetensors")
+
+    def test_main_loads_lora_before_generation(self) -> None:
+        fake_image = MagicMock()
+        fake_pipe = MagicMock()
+        fake_pipe.return_value = MagicMock(images=[fake_image])
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            lora_path = root / "example-lora.safetensors"
+            lora_path.write_bytes(b"test")
+            (root / "config.yaml").write_text(
+                """defaults:\n  prompt: config prompt\n  model: config-model\n  device: cpu\npresets:\n  square:\n    width: 512\n    height: 512\n""",
+                encoding="utf-8",
+            )
+
+            with patch.object(generate_sdxl, "build_pipeline", return_value=fake_pipe):
+                with patch.object(generate_sdxl.Path, "cwd", return_value=root):
+                    generate_sdxl.main([
+                        "--lora-path",
+                        str(lora_path),
+                        "--output-dir",
+                        temp_dir,
+                    ])
+
+        fake_pipe.load_lora_weights.assert_called_once_with(str(lora_path))
+        fake_pipe.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

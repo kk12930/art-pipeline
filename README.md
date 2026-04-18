@@ -1,12 +1,15 @@
 # art-pipeline
 
-从最小可运行版本开始。当前处于 **Phase 2: 配置系统与预设** 阶段。
+从最小可运行版本开始。当前处于 **Phase 5: 最小 API 接口** 阶段。
 
 ## 阶段目标
 - 支持通过 `config.yaml` 管理全局默认参数。
 - 支持命名分辨率预设（Presets）。
 - 建立清晰的参数优先级机制（CLI > Preset > Config）。
-- 保持单图生成的核心功能稳定。
+- 支持通过 `batch.yaml` 顺序批量生成。
+- 保持 CLI 单图/批量两种用法都稳定。
+- 支持通过可选 `--lora-path` 加载本地 LoRA 权重进行推理。
+- 支持一个最小本地 FastAPI 接口用于单图生成。
 
 ## 环境安装
 
@@ -107,10 +110,55 @@ python scripts/generate_sdxl.py --prompt "A serene mountain landscape" --device 
 
 ### 3. Test/verify summary
 
-Phase 2 的最小验证组合就是：
+Phase 5 的最小验证组合就是：
 - `python -m unittest discover -v`
 - `python -m unittest tests.test_generate_sdxl -v`
+- `python -m unittest tests.test_api -v`
 - `python scripts/generate_sdxl.py --help`
+
+### 4. Minimal API (Phase 5)
+
+当前新增的是一个**最小本地 FastAPI 接口**，用于在本机通过 HTTP 调用单图生成逻辑。它不是生产级服务，不包含认证、任务队列、数据库或后台 worker。
+
+#### 启动方式
+
+```bash
+python -m uvicorn api.server:app --host 127.0.0.1 --port 8000
+```
+
+#### 健康检查
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+成功信号：返回
+
+```json
+{"status":"ok"}
+```
+
+#### 单图生成请求
+
+```bash
+curl -X POST http://127.0.0.1:8000/generate \
+  -H "Content-Type: application/json" \
+  -d "{\"prompt\":\"A simple sketch icon\",\"device\":\"cpu\",\"output_dir\":\"outputs\"}"
+```
+
+成功信号：返回 JSON，包含保存后的文件路径，例如：
+
+```json
+{"outputPath":"outputs/sdxl_20260418_120000.png"}
+```
+
+#### 当前 API 范围
+
+- 仅提供 `GET /health`
+- 仅提供 `POST /generate`
+- 当前 API 复用与 CLI 相同的配置加载、preset、LoRA、输出保存逻辑
+- 当前只暴露**单图生成**接口，不直接暴露 batch.yaml 批量接口
+- 当前建议仅绑定到 `127.0.0.1` 本地使用
 
 ## 配置与预设 (Phase 2)
 
@@ -176,6 +224,109 @@ python scripts/generate_sdxl.py --prompt "A fantasy forest" --preset square
 python scripts/generate_sdxl.py --prompt "Sunset beach" --preset square --height 512
 ```
 在此示例中，宽度将遵循 `square` 预设（如 1024），而高度将被强制设为 512。
+
+## 批量生成 (Phase 3)
+
+本阶段在原有单图 CLI 基础上增加了最小批量能力。当前仍然是 **CLI 项目**，不是 API 或后台服务；批量执行通过 `batch.yaml` 顺序驱动。
+
+### 1. `batch.yaml` 结构
+
+项目当前支持的最小批量结构如下：
+
+```yaml
+items:
+  - prompt: A clean mobile app icon
+    preset: square
+  - prompt: A dashboard hero illustration
+    width: 1280
+    height: 720
+    steps: 40
+```
+
+每个批量条目当前可用字段：
+- `prompt`
+- `negative_prompt`
+- `width`
+- `height`
+- `preset`
+- `steps`
+- `guidance_scale`
+- `seed`
+- `output_dir`
+
+### 2. 批量命令行用法
+
+```bash
+python scripts/generate_sdxl.py --batch-file batch.yaml --device cpu
+```
+
+也可以继续用 CLI 显式参数覆盖批量条目中的分辨率：
+
+```bash
+python scripts/generate_sdxl.py --batch-file batch.yaml --width 900 --height 600 --device cpu
+```
+
+### 3. 批量模式下的优先级
+
+批量模式沿用现有参数合并思路，但在单个批量条目层面再插入一层：
+
+1. **显式 CLI 参数**
+2. **批量条目字段**
+3. **Preset**
+4. **Config Defaults**
+5. **脚本硬编码默认值**
+
+也就是说：
+- CLI 仍然拥有最高优先级
+- 单个批量条目可以覆盖 `config.yaml` 的默认值
+- 批量条目如果只写 `preset`，就会使用对应 preset 的宽高
+
+### 4. 当前批量执行策略
+
+- 当前是**顺序执行**，不是并发任务系统
+- 当前是**失败即停止（fail-fast）**：任意一条生成报错，整个 batch 立即停止
+- 当前默认会复用同一个已加载的 pipeline 来顺序执行批量条目
+- 当前仍然只保存到本地 `outputs/`（或你传入的 `--output-dir`）
+
+## LoRA 推理 (Phase 4)
+
+本阶段在已有单图 / 批量 CLI 基础上，增加了最小 LoRA 推理接入。当前只支持**本地 LoRA 权重文件加载**，不涉及训练、服务化或复杂多适配器管理。
+
+### 1. CLI 用法
+
+单图 + LoRA：
+
+```bash
+python scripts/generate_sdxl.py --prompt "A polished game icon" --lora-path models/example-lora.safetensors --device cpu
+```
+
+批量 + LoRA：
+
+```bash
+python scripts/generate_sdxl.py --batch-file batch.yaml --lora-path models/example-lora.safetensors --device cpu
+```
+
+### 2. 当前行为
+
+- `--lora-path` 是**可选参数**
+- 当前要求它指向一个**本地存在的文件路径**
+- 如果路径不存在，脚本会直接报错并停止
+- 当前会在 pipeline 构建完成后加载一次 LoRA，然后继续单图或 batch 推理
+- 当前没有做多 LoRA 组合、adapter 命名或 LoRA scale 调整
+
+### 3. 作用范围
+
+当前 LoRA 接入属于最小推理版本，只解决：
+
+- 如何把本地 LoRA 权重接入现有 SDXL CLI
+- 如何在当前单图 / batch 流程中复用同一个已加载的 LoRA pipeline
+
+当前还没有覆盖：
+
+- 多 LoRA 切换
+- 每个 batch item 不同 LoRA
+- LoRA scale 配置
+- Refiner / ControlNet 组合
 
 ## 说明
 - 默认生成结果保存至 `outputs/` 目录；它只用于本地生成产物，不应提交到版本库。
