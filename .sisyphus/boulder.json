@@ -1,0 +1,61 @@
+{
+  "active_plan": "E:\\art-pipeline\\.sisyphus\\plans\\phase2-config-presets.md",
+  "started_at": "2026-04-18T06:47:02.892Z",
+  "session_ids": [
+    "ses_262d34c71ffe1hGH1DXRG0X1EQ",
+    "ses_260a7e000ffedebKNRMB30TkdM",
+    "ses_260a7de7dffeFufMicq7pX3g2M"
+  ],
+  "session_origins": {
+    "ses_262d34c71ffe1hGH1DXRG0X1EQ": "direct",
+    "ses_260a7e000ffedebKNRMB30TkdM": "appended",
+    "ses_260a7de7dffeFufMicq7pX3g2M": "appended"
+  },
+  "plan_name": "phase2-config-presets",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Add a minimal config file and loader for default generation settings",
+      "session_id": "ses_260a7e000ffedebKNRMB30TkdM",
+      "agent": "explore",
+      "updated_at": "2026-04-18T06:54:58.730Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Add named resolution preset support to the CLI with override precedence",
+      "session_id": "ses_2609af060ffeDqEpRQEx3wUsf5",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-18T07:05:49.858Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Expand tests for config parsing, preset lookup, and CLI-overrides-config behavior",
+      "session_id": "ses_26095b10dffeLe0xzxFCulTZfz",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-18T07:09:21.284Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Update README with config and preset usage examples",
+      "session_id": "ses_260a7de7dffeFufMicq7pX3g2M",
+      "agent": "librarian",
+      "updated_at": "2026-04-18T07:18:03.200Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan compliance audit",
+      "session_id": "ses_26087efbeffeu4liGjTjitc0iH",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-18T07:27:20.077Z"
+    }
+  }
+}
